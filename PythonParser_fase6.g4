@@ -2,59 +2,47 @@ parser grammar PythonParser;
 
 options { tokenVocab=PythonLexer; }
 
-// Ponto de entrada: múltiplas instruções até EOF
-code: (stat | conditional | func | func_call)* EOF;
+// Ponto de entrada: múltiplas instruções ou condicionais, terminando com EOF
+code: (stat | condicional | func | func_call)* EOF;
 
-// Cada linha de código
-stat: expr NEWLINE?;
+// Cada linha de código é uma expressão ou query, seguida de quebra de linha
+stat: (expr | query) NEWLINE?;
 
-// Condicional if / elif / else
-conditional
-    : 'if' query ':' NEWLINE? stat+
-      ('elif' query ':' NEWLINE? stat+)* 
-      ('else' ':' NEWLINE? stat+)?
+// Expressões aritméticas
+expr
+    : ID                                           #idExpr
+    | NUMBER                                       #numeroExpr
+    | expr op=(PLUS | MINUS | TIMES | DIVIDE | MOD) expr  #operacaoExpr
+    | LPAREN expr RPAREN                           #parensExpr
+    | inline_func_call                             #funcCallExpr
     ;
+
+// Queries booleanas
+query
+    : BOOLEANO                                     #valorBooleanoQuery
+    | query op=(AND | OR) query                    #operacaoBooleanaQuery
+    | LPAREN query RPAREN                          #parensQuery
+    | expr op=(EQ | NEQ | LT | LTE | GT | GTE) expr  #relacaoExprQuery
+    ;
+
+// Estruturas condicionais suportadas
+condicional
+    : IF query DOIS_PONTOS bloco                                                      #ifCondicional
+    | IF query DOIS_PONTOS bloco ELSE DOIS_PONTOS bloco                               #ifElseCondicional
+    | IF query DOIS_PONTOS bloco ELIF query DOIS_PONTOS bloco ELSE DOIS_PONTOS bloco #ifElifElseCondicional
+    | IF query DOIS_PONTOS bloco (ELIF query DOIS_PONTOS bloco)+ ELSE DOIS_PONTOS bloco #ifMultiplosElifElseCondicional
+    ;
+
+// Bloco indentado
+bloco: INDENT (stat | condicional)+ DEDENT;
+
+// === Regras adicionadas para Fase 6 ===
 
 // Definição de função
-func
-    : 'def' ID '(' arg_list? ')' ':' NEWLINE? 'return' expr? NEWLINE?
-    ;
+func: DEF ID LPAREN (ID (VIRG ID)*)? RPAREN DOIS_PONTOS bloco;
 
-// Chamada de função
-func_call
-    : ID '(' call_args? ')'
-    ;
+// Chamada de função como instrução
+func_call: ID LPAREN (expr (VIRG expr)*)? RPAREN NEWLINE?;
 
-// Lista de argumentos na definição
-arg_list
-    : ID (',' ID)*
-    ;
-
-// Lista de argumentos na chamada
-call_args
-    : expr (',' expr)*
-    ;
-
-// Consultas booleanas e relacionais
-query
-    : 'True'
-    | 'False'
-    | NOT query
-    | query (AND | OR) query
-    | '(' query ')'
-    | expr rel_op expr
-    ;
-
-rel_op
-    : '<' | '>' | '<=' | '>=' | '==' | '!='
-    ;
-
-// Expressões
-expr
-    : ID
-    | NUMBER
-    | expr (PLUS | MINUS | TIMES | DIVIDE | MOD | POWER) expr
-    | LPAREN expr RPAREN
-    | 'None'
-    | func_call
-    ;
+// Chamada de função inline (usada em expressões)
+inline_func_call: ID LPAREN (expr (VIRG expr)*)? RPAREN;
