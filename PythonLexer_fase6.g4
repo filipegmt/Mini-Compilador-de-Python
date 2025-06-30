@@ -3,43 +3,10 @@ parser grammar PythonParser;
 options { tokenVocab=PythonLexer; }
 
 // Ponto de entrada: múltiplas instruções até EOF
-code: (stat NEWLINE?)* EOF;
+code: (stat | conditional | func | func_call)* EOF;
 
-// Linha de código: uma ou mais instruções
-stat: simple_stat | compound_stat;
-
-// Instruções simples
-simple_stat
-    : expr
-    | query
-    | function_call
-    ;
-
-// Instruções compostas
-compound_stat
-    : conditional
-    | function
-    | while_loop
-    | for_loop
-    ;
-
-// Consultas booleanas e relacionais
-query
-    : 'True'
-    | 'False'
-    | NOT query
-    | query (AND | OR) query
-    | '(' query ')'
-    | comparison
-    ;
-
-comparison
-    : expr rel_op expr
-    ;
-
-rel_op
-    : '<' | '>' | '<=' | '>=' | '==' | '!='
-    ;
+// Cada linha de código
+stat: expr NEWLINE?;
 
 // Condicional if / elif / else
 conditional
@@ -49,31 +16,37 @@ conditional
     ;
 
 // Definição de função
-function
+func
     : 'def' ID '(' arg_list? ')' ':' NEWLINE? 'return' expr? NEWLINE?
     ;
 
+// Chamada de função
+func_call
+    : ID '(' call_args? ')'
+    ;
+
+// Lista de argumentos na definição
 arg_list
     : ID (',' ID)*
     ;
 
-// Chamada de função
-function_call
-    : ID '(' call_args? ')'
-    ;
-
+// Lista de argumentos na chamada
 call_args
     : expr (',' expr)*
     ;
 
-// Estrutura while
-while_loop
-    : 'while' query ':' NEWLINE? stat+
+// Consultas booleanas e relacionais
+query
+    : 'True'
+    | 'False'
+    | NOT query
+    | query (AND | OR) query
+    | '(' query ')'
+    | expr rel_op expr
     ;
 
-// Estrutura for com range
-for_loop
-    : 'for' ID 'in' 'range' '(' expr (',' expr)? (',' expr)? ')' ':' NEWLINE? stat+
+rel_op
+    : '<' | '>' | '<=' | '>=' | '==' | '!='
     ;
 
 // Expressões
@@ -83,4 +56,5 @@ expr
     | expr (PLUS | MINUS | TIMES | DIVIDE | MOD | POWER) expr
     | LPAREN expr RPAREN
     | 'None'
+    | func_call
     ;
